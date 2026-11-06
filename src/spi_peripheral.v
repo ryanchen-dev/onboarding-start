@@ -16,7 +16,7 @@ module spi_peripheral (
     output reg  [7:0] pwm_duty_cycle   // 0x04
 );
 
-  // Synchronizers - preventing metastability
+  // Synchronizers to preventing metastability
   // bit 0: first flip-flop (might be metastable, don't read)
   // bit 1: second flip-flop (synchronized and accurate value)
   // bit 2: bit 1 from one clock earlier (used to find edges)
@@ -35,4 +35,13 @@ module spi_peripheral (
       copi_sync <= {copi_sync[0], copi};
     end
   end
+
+  // Edge detection: compare the clean value now (bit 1)
+  // with the clean value one clock ago (bit 2).
+  // Each pulse is 1 for exactly one clk cycle.
+  wire sclk_rising = (sclk_sync[2:1] == 2'b01);  // 0-->1: Grab a bit
+  wire ncs_falling = (ncs_sync[2:1]  == 2'b10);  // 1-->0: Message starts
+  wire ncs_rising  = (ncs_sync[2:1]  == 2'b01);  // 0-->1: Message ends
+  wire ncs_active  = ~ncs_sync[1]; // 1 while message in progress
+
 endmodule
