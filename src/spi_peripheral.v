@@ -16,6 +16,8 @@ module spi_peripheral (
     output reg  [7:0] pwm_duty_cycle   // 0x04
 );
 
+ localparam [6:0] MAX_ADDRESS = 7'h04; // Constant - highest valid address
+
   // Synchronizers to preventing metastability
   // bit 0: first flip-flop (might be metastable, don't read)
   // bit 1: second flip-flop (synchronized and accurate value)
@@ -28,7 +30,7 @@ module spi_peripheral (
     if (!rst_n) begin // When reset is required
       sclk_sync <= 3'b000; // Set all three SCLK boxes to 0
       ncs_sync  <= 3'b111; // Set all 3 nCS boxes to 1
-      copi_sync <= 2'b00;  // Set both COPI boxes to 0
+      copi_sync <= 2'b00; // Set both COPI boxes to 0
     end else begin
       sclk_sync <= {sclk_sync[1:0], sclk};
       ncs_sync  <= {ncs_sync[1:0], ncs};
@@ -39,9 +41,9 @@ module spi_peripheral (
   // Edge detection: compare the clean value now (bit 1)
   // with the clean value one clock ago (bit 2).
   // Each pulse is 1 for exactly one clk cycle.
-  wire sclk_rising = (sclk_sync[2:1] == 2'b01);  // 0-->1: Grab a bit
-  wire ncs_falling = (ncs_sync[2:1]  == 2'b10);  // 1-->0: Message starts
-  wire ncs_rising  = (ncs_sync[2:1]  == 2'b01);  // 0-->1: Message ends
+  wire sclk_rising = (sclk_sync[2:1] == 2'b01); // 0-->1: Grab a bit
+  wire ncs_falling = (ncs_sync[2:1]  == 2'b10); // 1-->0: Message starts
+  wire ncs_rising  = (ncs_sync[2:1]  == 2'b01); // 0-->1: Message ends
   wire ncs_active  = ~ncs_sync[1]; // 1 while message in progress
 
   // Receiving bits
@@ -62,8 +64,14 @@ module spi_peripheral (
   end
 
   // After 16 bits
-  wire rw_bit  = shift_reg[15]; // 1: Write
-  wire [6:0] address = shift_reg[14:8]; // Which register
-  wire [7:0] data    = shift_reg[7:0]; // The value
+  wire rw_bit  = shift_reg[15]; // Read/write bit
+  wire [6:0] address = shift_reg[14:8]; // The address
+  wire [7:0] data    = shift_reg[7:0]; // The data
   
+  // Validation: Check if the message should be acting upon
+  wire write_valid = ncs_rising // Check that message just ended
+        && (bit_count == 5'd16) // Check that exactly 16 bits arrived
+        && rw_bit // Check that it's a write message, not just read
+        && (address <= MAX_ADDRESS); // In an existing register address
+
 endmodule
