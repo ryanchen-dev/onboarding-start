@@ -30,6 +30,20 @@ module tt_um_uwasic_onboarding_ryan_chen (
   wire [7:0] en_reg_pwm_15_8;
   wire [7:0] pwm_duty_cycle;
 
+  // Instantiate the SPI peripheral
+  spi_peripheral spi_peripheral_inst (
+    .clk(clk),
+    .rst_n(rst_n), // both reset together
+    .sclk(ui_in[0]), // bit 0 inputted to spi clock pin
+    .copi(ui_in[1]),
+    .ncs(ui_in[2]),
+    .en_reg_out_7_0(en_reg_out_7_0), // outputs from spi peripheral
+    .en_reg_out_15_8(en_reg_out_15_8),
+    .en_reg_pwm_7_0(en_reg_pwm_7_0),
+    .en_reg_pwm_15_8(en_reg_pwm_15_8),
+    .pwm_duty_cycle(pwm_duty_cycle)
+  );  
+
   // Instantiate the PWM module
   pwm_peripheral pwm_peripheral_inst (
     .clk(clk),
