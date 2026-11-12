@@ -83,6 +83,15 @@ async def send_spi_transaction(dut, r_w, address, data):
     await ClockCycles(dut.clk, 600)
     return ui_in_logicarray(ncs, bit, sclk)
 
+async def wait_for_bit(dut, level, max_cycles=10000):
+    """Wait until uo_out[0] equals level.
+    Return the time in ns, or None if it never happens."""
+    for _ in range(max_cycles):
+        await RisingEdge(dut.clk) # Pause until the next clock tick (100 ns)
+        if (int(dut.uo_out.value) & 1) == level:
+            return cocotb.utils.get_sim_time(units="ns")
+    return None # Bit never arrives
+
 @cocotb.test()
 async def test_spi(dut):
     dut._log.info("Start SPI test")
