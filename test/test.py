@@ -190,8 +190,40 @@ async def test_pwm_freq(dut):
 
     dut._log.info("PWM Frequency test completed successfully")
 
-
 @cocotb.test()
 async def test_pwm_duty(dut):
-    # Write your test here
+    dut._log.info("Start PWM duty cycle test")
+
+    # Start clock and reset
+    clock = Clock(dut.clk, 100, units = "ns")
+    cocotb.start_soon(clock.start())
+    dut.ena.value = 1
+    dut.ui_in.value = ui_in_logicarray(1, 0, 0) 
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 5)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 5)
+
+    # Pin 0: output on, PWM mode on
+    await send_spi_transaction(dut, 1, 0x00, 0x01)
+    await send_spi_transaction(dut, 1, 0x02, 0x01)
+
+    # 50% duty (0x80): Measure high time and period
+    await send_spi_transaction(dut, 1, 0x04, 0x80)
+    await wait_for_bit(dut, 0)
+    t_rise1 = await wait_for_bit(dut, 1)
+    t_fall  = await wait_for_bit(dut, 0)
+    t_rise2 = await wait_for_bit(dut, 1)
+    duty = (t_fall - t_rise1) / (t_rise2 - t_rise1) * 100
+    dut._log.info(f"0x80: duty {duty:.2f}%")
+    assert 49 <= duty <= 51, f"Expected 50%, got {duty:.2f}%"
+
+    # 0% duty (0x00)
+    await send_spi_transaction(dut, 1, 0x04, 0x00)
+    assert await wait_for_bit(dut, 1) is None, "Expected 0% (always low)"
+
+    # 100% duty (0xFF)
+    await send_spi_transaction(dut, 1, 0x04, 0xFF)
+    assert await wait_for_bit(dut, 0) is None, "Expected 100% (always high)"
+
     dut._log.info("PWM Duty Cycle test completed successfully")
