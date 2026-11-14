@@ -226,4 +226,15 @@ async def test_pwm_duty(dut):
     await send_spi_transaction(dut, 1, 0x04, 0xFF)
     assert await wait_for_bit(dut, 0) is None, "Expected 100% (always high)"
 
+    # Interaction between enable/PWM registers
+    # Output off
+    await send_spi_transaction(dut, 1, 0x00, 0x00)
+    assert await wait_for_bit(dut, 1) is None, "Output off should force 0"
+
+    # Output on, PWM off
+    await send_spi_transaction(dut, 1, 0x04, 0x80)
+    await send_spi_transaction(dut, 1, 0x02, 0x00)
+    await send_spi_transaction(dut, 1, 0x00, 0x01)
+    assert await wait_for_bit(dut, 0) is None, "PWM off should give steady 1"
+
     dut._log.info("PWM Duty Cycle test completed successfully")
