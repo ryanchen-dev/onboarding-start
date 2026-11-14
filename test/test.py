@@ -160,7 +160,34 @@ async def test_spi(dut):
 
 @cocotb.test()
 async def test_pwm_freq(dut):
-    # Write your test here
+    dut._log.info("Start PWM frequency test")
+
+    # Start a 10 MHz clock and reset (each test starts fresh)
+    clock = Clock(dut.clk, 100, units="ns")
+    cocotb.start_soon(clock.start())
+    dut.ena.value = 1
+    dut.ui_in.value = ui_in_logicarray(1, 0, 0)  # nCS high = SPI idle
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 5)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 5)
+
+    # Pin 0: output on, PWM mode on, 50% duty
+    await send_spi_transaction(dut, 1, 0x00, 0x01)
+    await send_spi_transaction(dut, 1, 0x02, 0x01)
+    await send_spi_transaction(dut, 1, 0x04, 0x80) # 128/256 = 50%
+
+    # Time two rising edges
+    await wait_for_bit(dut, 0)
+    t1 = await wait_for_bit(dut, 1)
+    await wait_for_bit(dut, 0)
+    t2 = await wait_for_bit(dut, 1)
+
+    period_ns = t2 - t1
+    freq = 1e9 / period_ns
+    dut._log.info(f"Period {period_ns} ns, frequency {freq:.1f} Hz")
+    assert 2970 <= freq <= 3030, f"Frequency {freq:.1f} Hz out of range"
+
     dut._log.info("PWM Frequency test completed successfully")
 
 
